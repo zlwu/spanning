@@ -6,5 +6,5 @@ Usage: spanning /path/to/source /path/to/target folder-prefix max_size_in_bytes
   An example for spanning BD-R 25GB disk: spanning ./source/dir ./target/dir disc- 23300000000
 ```
 
-# Reference
+## Reference
  - [Disc spanning](https://en.wikipedia.org/wiki/Disc_spanning)
