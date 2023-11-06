@@ -3,7 +3,7 @@ Utility to spread a large amount of data across many fixed-size data discs befor
 
 ```txt
 Usage: spanning /path/to/source /path/to/target folder-prefix max_size_in_bytes
-  An example for spanning BD-R 25GB disk: spanning ./source/dir ./target/dir disc- 23300000000
+  An example for spanning BD-R 25GB disk: spanning ./source/dir ./target/dir disc- 25000000000
 ```
 
 ## Reference
