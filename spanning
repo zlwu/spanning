@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+
+import os
+import shutil
+import sys
+from queue import Queue
+
+def split_content(source_path, target_path, folder_prefix, maximum_size):
+    source_files = Queue()  # 创建一个队列来存储源文件
+    source_directories = []  # 创建一个列表来存储源目录
+    check_directories = [source_path]  # 创建一个列表来存储需要检查的目录
+
+    # 遍历所有需要检查的目录
+    totalSize = 0
+    while check_directories:
+        grab_dir = check_directories.pop()
+        for root, dirs, files in os.walk(grab_dir):
+            for file in files:
+                source_files.put(os.path.join(root, file))  # 将源文件添加到队列中
+                totalSize = totalSize + os.path.getsize(os.path.join(root, file))
+            for dir in dirs:
+                source_directories.append(os.path.join(root, dir))  # 将源目录添加到列表中
+        print("Dir " + grab_dir + " Total size: " + str(totalSize))
+
+    current_item = 1  # 当前处理的目标目录的编号
+    running_length = 0  # 当前目标目录中的文件总大小
+
+    # 遍历所有源文件
+    while not source_files.empty():
+        s_target_path = os.path.join(target_path, folder_prefix + str(current_item))  # 创建目标目录的路径
+        os.makedirs(s_target_path, exist_ok=True)  # 创建目标目录
+        for add_directory in source_directories:
+            rel_path = os.path.relpath(add_directory, source_path)
+            build_directory = os.path.join(s_target_path, rel_path)  # 创建目标子目录的路径
+            os.makedirs(build_directory, exist_ok=True)  # 创建目标子目录
+
+        running_length = 0  # 重置当前目标目录的文件总大小
+        # 遍历所有源文件，直到当前目标目录的文件总大小达到最大值
+        while not source_files.empty() and running_length < maximum_size:
+            next_file = source_files.queue[0]  # 获取下一个源文件
+            if running_length + os.path.getsize(next_file) > maximum_size:
+                break  # 如果加上下一个文件的大小会超过最大值，就跳出循环
+            source_files.get()  # 从队列中移除下一个文件
+            target_file_relative = os.path.relpath(next_file, source_path) # 创建目标文件的相对路径
+            target_file_path = os.path.join(s_target_path, target_file_relative)  # 创建目标文件的完整路径
+            shutil.copy2(next_file, target_file_path)  # 将源文件复制到目标路径
+            print("Copied " + next_file + " to " + target_file_path)
+            running_length += os.path.getsize(next_file)  # 更新当前目标目录的文件总大小
+        current_item += 1  # 更新当前处理的目标目录的编号
+        print("Completed " + str(current_item - 1) + " of " + str(source_files.qsize()) + " directories, running_length=" + str(running_length))  # 打印完成信息
+    print("Completed")
+
+if __name__ == "__main__":
+    if len(sys.argv) < 5:
+        print("Usage: " + sys.argv[0] + " /path/to/source /path/to/target folder-prefix max_size_in_bytes")
+        print("  An example for spanning BD-R 25GB disk: " + sys.argv[0] + " ./source/dir ./target/dir disc- 23300000000")
+        exit(0)
+
+    source = sys.argv[1]  # 获取源目录
+    target = sys.argv[2]  # 获取目标目录
+    prefix = sys.argv[3]  # 获取目标目录的前缀
+    max_size = int(sys.argv[4])  # 获取每个目标目录的最大文件总大小
+    split_content(source, target, prefix, max_size)  # 调用函数进行文件分割
