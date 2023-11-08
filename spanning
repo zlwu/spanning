@@ -60,7 +60,7 @@ if __name__ == "__main__":
     parser.add_argument('size', type=int, help='The maximum size in bytes for each directory.')
     parser.add_argument('--prefix', default=None, help='The prefix for the target directories, defaults to the source directory name.')
     parser.add_argument('--dry-run', action='store_true', help='Run the program without actually copying files.')
-    parser.add_argument('--verbose', action='store_true', help='Print debug output.')
+    parser.add_argument('-V', '--verbose', action='store_true', help='Print debug output.')
 
     args = parser.parse_args()
 
