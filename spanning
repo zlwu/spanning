@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
 import os
+import argparse
 import shutil
 import sys
 from queue import Queue
 
-def split_content(source_path, target_path, folder_prefix, maximum_size):
+def split_content(source_path, target_path, folder_prefix, maximum_size, dry_run, verbose):
     source_files = Queue()  # 创建一个队列来存储源文件
     source_directories = []  # 创建一个列表来存储源目录
     check_directories = [source_path]  # 创建一个列表来存储需要检查的目录
@@ -20,7 +21,7 @@ def split_content(source_path, target_path, folder_prefix, maximum_size):
                 totalSize = totalSize + os.path.getsize(os.path.join(root, file))
             for dir in dirs:
                 source_directories.append(os.path.join(root, dir))  # 将源目录添加到列表中
-        print("Dir " + grab_dir + " Total size: " + str(totalSize))
+        print("Dir " + grab_dir + ", total size: " + f"{totalSize:,d}")
 
     current_item = 1  # 当前处理的目标目录的编号
     running_length = 0  # 当前目标目录中的文件总大小
@@ -28,11 +29,12 @@ def split_content(source_path, target_path, folder_prefix, maximum_size):
     # 遍历所有源文件
     while not source_files.empty():
         s_target_path = os.path.join(target_path, folder_prefix + str(current_item))  # 创建目标目录的路径
-        os.makedirs(s_target_path, exist_ok=True)  # 创建目标目录
-        for add_directory in source_directories:
-            rel_path = os.path.relpath(add_directory, source_path)
-            build_directory = os.path.join(s_target_path, rel_path)  # 创建目标子目录的路径
-            os.makedirs(build_directory, exist_ok=True)  # 创建目标子目录
+        if not dry_run:
+            os.makedirs(s_target_path, exist_ok=True)  # 创建目标目录
+            for add_directory in source_directories:
+                rel_path = os.path.relpath(add_directory, source_path)
+                build_directory = os.path.join(s_target_path, rel_path)  # 创建目标子目录的路径
+                os.makedirs(build_directory, exist_ok=True)  # 创建目标子目录
 
         running_length = 0  # 重置当前目标目录的文件总大小
         # 遍历所有源文件，直到当前目标目录的文件总大小达到最大值
@@ -43,21 +45,27 @@ def split_content(source_path, target_path, folder_prefix, maximum_size):
             source_files.get()  # 从队列中移除下一个文件
             target_file_relative = os.path.relpath(next_file, source_path) # 创建目标文件的相对路径
             target_file_path = os.path.join(s_target_path, target_file_relative)  # 创建目标文件的完整路径
-            shutil.copy2(next_file, target_file_path)  # 将源文件复制到目标路径
-            print("Copied " + next_file + " to " + target_file_path)
+            if not dry_run:
+                shutil.copy2(next_file, target_file_path)  # 将源文件复制到目标路径
+                if verbose: print("  Copied " + next_file + " to " + target_file_path)
             running_length += os.path.getsize(next_file)  # 更新当前目标目录的文件总大小
         current_item += 1  # 更新当前处理的目标目录的编号
-        print("Completed " + str(current_item - 1) + " of " + str(source_files.qsize()) + " directories, running_length=" + str(running_length))  # 打印完成信息
+        print("Disc " + str(current_item - 1) +  ", size = " + f"{running_length:,d}")  # 打印完成信息
     print("Completed")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 5:
-        print("Usage: " + sys.argv[0] + " /path/to/source /path/to/target folder-prefix max_size_in_bytes")
-        print("  An example for spanning BD-R 25GB disk: " + sys.argv[0] + " ./source/dir ./target/dir disc- 23300000000")
-        exit(0)
+    parser = argparse.ArgumentParser(description='Split content into multiple directories.')
+    parser.add_argument('source', help='The source directory.')
+    parser.add_argument('target', help='The target directory.')
+    parser.add_argument('size', type=int, help='The maximum size in bytes for each directory.')
+    parser.add_argument('--prefix', default=None, help='The prefix for the target directories, defaults to the source directory name.')
+    parser.add_argument('--dry-run', action='store_true', help='Run the program without actually copying files.')
+    parser.add_argument('--verbose', action='store_true', help='Print debug output.')
 
-    source = sys.argv[1]  # 获取源目录
-    target = sys.argv[2]  # 获取目标目录
-    prefix = sys.argv[3]  # 获取目标目录的前缀
-    max_size = int(sys.argv[4])  # 获取每个目标目录的最大文件总大小
-    split_content(source, target, prefix, max_size)  # 调用函数进行文件分割
+    args = parser.parse_args()
+
+    # 如果没有提供--prefix选项，使用源目录的名称作为默认值
+    if args.prefix is None:
+        args.prefix = os.path.basename(os.path.normpath(args.source)) + "-"
+
+    split_content(args.source, args.target, args.prefix, args.size, args.dry_run, args.verbose)
